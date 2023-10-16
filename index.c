@@ -92,7 +92,6 @@ AVLTreeNode* insertEvent(AVLTreeNode* root, Event event) {
     return root;
 }
 
-// Function to check for conflicts in the AVL tree
 int hasConflictInAVLTree(AVLTreeNode* root, Event event) {
     if (root == NULL) return 0;
 
@@ -114,7 +113,6 @@ int hasConflictInAVLTree(AVLTreeNode* root, Event event) {
     return hasConflictInAVLTree(root->right, event);
 }
 
-// Function to display events in the AVL tree (in-order traversal)
 void displayEvents(AVLTreeNode* root) {
     if (root == NULL) return;
 
@@ -123,7 +121,6 @@ void displayEvents(AVLTreeNode* root) {
     displayEvents(root->right);
 }
 
-// Function to delete an event by ID
 AVLTreeNode* deleteEventById(AVLTreeNode* root, int id, int* deleted) {
     if (root == NULL) return root;
 
@@ -186,9 +183,9 @@ int main() {
                 Event newEvent;
 
                 printf("Enter event description: ");
-                getchar(); // Consume the newline character
+                getchar(); 
                 fgets(newEvent.description, sizeof(newEvent.description), stdin);
-                newEvent.description[strcspn(newEvent.description, "\n")] = '\0'; // Remove newline character
+                newEvent.description[strcspn(newEvent.description, "\n")] = '\0'; 
 
                 printf("Enter event start time: ");
                 scanf("%d", &newEvent.start);
@@ -250,7 +247,6 @@ int main() {
             }
 
             case 5:
-                // Free memory
                 free(root);
                 exit(0);
 
