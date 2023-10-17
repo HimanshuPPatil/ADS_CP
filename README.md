@@ -1,31 +1,17 @@
 # ADS_CP
-It contains code of Event scheduling by using AVL Tree
 
+This project is a C program that implements an Interval Tree data structure for managing events with time intervals. The program provides a menu-driven interface for various operations:
 
-This project is a calendar scheduling system implemented in C using an AVL tree data structure to efficiently manage events and check for conflicts. Here's an overview of the project's components and functionality:
+Insert Event: Allows users to add events with descriptions and time intervals, checking for conflicts with existing events.
 
-Structures and Data Representation:
+Explain Events at Time: Given a specific time, the program explains the events that occur at that time, including delivering scheduled notifications.
 
-The project uses two main data structures: Event to represent an event with a start and end time, and AVLTreeNode to represent a node in the AVL tree with associated event data.
-AVL Tree Implementation:
+Delete Event by ID: Enables the removal of events by their unique IDs.
 
-The AVL tree is a self-balancing binary search tree where each node represents an event. Events are inserted and deleted in a way that maintains the balance of the tree.
-Functionality:
+Display Intervals (In-order): Lists the events in the Interval Tree in in-order traversal, displaying their descriptions and time intervals.
 
-Adding Events (1): Users can add events by providing a description, start time, and end time. The system assigns a unique event ID and checks for conflicts with existing events using the AVL tree.
+Schedule Notification for Event: Allows users to set notification details (time, method, recipient) for a specific event.
 
-Listing Events (2): The system displays all events in the calendar using in-order traversal of the AVL tree.
+The program maintains the Interval Tree to efficiently manage and query events. It also performs conflict checks during insertion to ensure that overlapping events are not added. The code is organized into functions for various tree operations, including rotations and balancing.
 
-Checking for Conflicts (3): Users can input a time slot (start and end times) to check for conflicts with existing events in the calendar.
-
-Deleting Events (4): Users can delete events by specifying their event ID. The system updates the AVL tree and removes the event while maintaining balance.
-
-Exiting the Program (5): Allows the user to exit the program and free allocated memory.
-
-Conflict Detection:
-
-The AVL tree efficiently handles conflict detection by comparing the start and end times of events to identify overlapping time intervals.
-User Interaction:
-
-The program provides a simple text-based interface for users to interact with the calendar system, guiding them through options to manage events effectively.
-Overall, this project offers a basic calendar management system utilizing an AVL tree to efficiently organize and handle events, making it easy for users to schedule, view, and manage their events while avoiding conflicts in time slots.
+The project is suitable for managing events with time intervals, scheduling notifications, and quickly retrieving events relevant to a specific time. It provides a practical example of how to implement an Interval Tree and offers a basic command-line interface for user interaction
