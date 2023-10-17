@@ -1,26 +1,36 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <stdbool.h>
 
 typedef struct {
-    int start;
-    int end;
+    int low, high;
     char description[100];
     int id;
-} Event;
+    int notifyTime; // Time to send notification
+    char notificationMethod[20]; // Method (e.g., email, pop-up)
+    char recipient[100]; // Recipient for notification
+} Interval;
 
-int eventIdCounter = 1; 
+typedef struct ITNode {
+    Interval *i;
+    int max;
+    struct ITNode *left, *right;
+    int height;
+} ITNode;
 
-typedef struct AVLTreeNode {
-    int low;
-    int high;
-    Event event;
-    struct AVLTreeNode* left;
-    struct AVLTreeNode* right;
-    int height; 
-} AVLTreeNode;
+int eventIdCounter = 1;
 
-int height(AVLTreeNode* node) {
+ITNode *newNode(Interval i) {
+    ITNode *temp = (ITNode *)malloc(sizeof(ITNode));
+    temp->i = (Interval *)malloc(sizeof(Interval));
+    *(temp->i) = i;
+    temp->max = i.high;
+    temp->left = temp->right = NULL;
+    temp->height = 1;
+    return temp;
+}
+
+int height(ITNode *node) {
     if (node == NULL) return 0;
     return node->height;
 }
@@ -29,19 +39,22 @@ int max(int a, int b) {
     return (a > b) ? a : b;
 }
 
-AVLTreeNode* createNode(Event event) {
-    AVLTreeNode* newNode = (AVLTreeNode*)malloc(sizeof(AVLTreeNode));
-    newNode->low = event.start;
-    newNode->high = event.end;
-    newNode->event = event;
-    newNode->left = newNode->right = NULL;
-    newNode->height = 1;
-    return newNode;
+int getBalance(ITNode *node) {
+    if (node == NULL) return 0;
+    return height(node->left) - height(node->right);
 }
 
-AVLTreeNode* rightRotate(AVLTreeNode* y) {
-    AVLTreeNode* x = y->left;
-    AVLTreeNode* T2 = x->right;
+void updateMax(ITNode *node) {
+    if (node == NULL) return;
+    int max_child = 0;
+    if (node->left) max_child = node->left->max;
+    if (node->right && node->right->max > max_child) max_child = node->right->max;
+    node->max = (max_child > node->i->high) ? max_child : node->i->high;
+}
+
+ITNode *rightRotate(ITNode *y) {
+    ITNode *x = y->left;
+    ITNode *T2 = x->right;
 
     x->right = y;
     y->left = T2;
@@ -49,12 +62,15 @@ AVLTreeNode* rightRotate(AVLTreeNode* y) {
     y->height = max(height(y->left), height(y->right)) + 1;
     x->height = max(height(x->left), height(x->right)) + 1;
 
+    updateMax(y);
+    updateMax(x);
+
     return x;
 }
 
-AVLTreeNode* leftRotate(AVLTreeNode* x) {
-    AVLTreeNode* y = x->right;
-    AVLTreeNode* T2 = y->left;
+ITNode *leftRotate(ITNode *x) {
+    ITNode *y = x->right;
+    ITNode *T2 = y->left;
 
     y->left = x;
     x->right = T2;
@@ -62,94 +78,85 @@ AVLTreeNode* leftRotate(AVLTreeNode* x) {
     x->height = max(height(x->left), height(x->right)) + 1;
     y->height = max(height(y->left), height(y->right)) + 1;
 
+    updateMax(x);
+    updateMax(y);
+
     return y;
 }
 
-int getBalance(AVLTreeNode* node) {
-    if (node == NULL) return 0;
-    return height(node->left) - height(node->right);
+int doOverlap(Interval i1, Interval i2) {
+    return (i1.low <= i2.high && i2.low <= i1.high);
 }
 
-AVLTreeNode* insertEvent(AVLTreeNode* root, Event event) {
-    if (root == NULL) return createNode(event);
+ITNode *insertWithConflictCheck(ITNode *root, Interval i) {
+    if (root == NULL) return newNode(i);
 
-    int low = event.start;
+    if (doOverlap(*(root->i), i)) {
+        printf("Conflict detected. Interval [%d, %d] cannot be added.\n", i.low, i.high);
+        return root;
+    }
 
-    if (low < root->low) root->left = insertEvent(root->left, event);
-    else root->right = insertEvent(root->right, event);
+    if (i.low < root->i->low)
+        root->left = insertWithConflictCheck(root->left, i);
+    else
+        root->right = insertWithConflictCheck(root->right, i);
 
-    root->height = 1 + max(height(root->left), height(root->right));
+    root->height = max(height(root->left), height(root->right)) + 1;
+    updateMax(root);
 
     int balance = getBalance(root);
 
     if (balance > 1) {
-        if (low < root->left->low) return rightRotate(root);
+        if (i.low < root->left->i->low) return rightRotate(root);
     }
     if (balance < -1) {
-        if (low > root->right->low) return leftRotate(root);
+        if (i.low > root->right->i->low) return leftRotate(root);
     }
 
     return root;
 }
 
-int hasConflictInAVLTree(AVLTreeNode* root, Event event) {
-    if (root == NULL) return 0;
+ITNode *findEventById(ITNode *root, int id) {
+    if (root == NULL) return NULL;
 
-    int low = event.start;
-    int high = event.end;
-
-    if (low < root->high && high > root->low) {
-        return 1;
+    if (id < root->i->id) {
+        return findEventById(root->left, id);
+    } else if (id > root->i->id) {
+        return findEventById(root->right, id);
+    } else {
+        return root;
     }
-
-    if (low == root->high) {
-        return 1;
-    }
-
-    if (low < root->low) {
-        return hasConflictInAVLTree(root->left, event);
-    }
-
-    return hasConflictInAVLTree(root->right, event);
 }
 
-void displayEvents(AVLTreeNode* root) {
-    if (root == NULL) return;
-
-    displayEvents(root->left);
-    printf("Event %d: %s (Start: %d, End: %d)\n", root->event.id, root->event.description, root->event.start, root->event.end);
-    displayEvents(root->right);
-}
-
-AVLTreeNode* deleteEventById(AVLTreeNode* root, int id, int* deleted) {
+ITNode *deleteEventById(ITNode *root, int id) {
     if (root == NULL) return root;
 
-    if (id < root->event.id) root->left = deleteEventById(root->left, id, deleted);
-    else if (id > root->event.id) root->right = deleteEventById(root->right, id, deleted);
+    if (id < root->i->id)
+        root->left = deleteEventById(root->left, id);
+    else if (id > root->i->id)
+        root->right = deleteEventById(root->right, id);
     else {
-        *deleted = 1;
-
         if (root->left == NULL) {
-            AVLTreeNode* temp = root->right;
+            ITNode *temp = root->right;
+            free(root->i);
             free(root);
             return temp;
         } else if (root->right == NULL) {
-            AVLTreeNode* temp = root->left;
+            ITNode *temp = root->left;
+            free(root->i);
             free(root);
             return temp;
         }
-
-        AVLTreeNode* temp = root->right;
+        ITNode *temp = root->right;
         while (temp->left != NULL) temp = temp->left;
 
-        root->event = temp->event;
-        root->low = temp->low;
-        root->high = temp->high;
-
-        root->right = deleteEventById(root->right, temp->event.id, deleted);
+        root->i = temp->i;
+        root->max = temp->max;
+        root->right = deleteEventById(root->right, temp->i->id);
     }
 
-    root->height = 1 + max(height(root->left), height(root->right));
+    root->height = max(height(root->left), height(root->right)) + 1;
+    updateMax(root);
 
     int balance = getBalance(root);
 
@@ -163,93 +170,113 @@ AVLTreeNode* deleteEventById(AVLTreeNode* root, int id, int* deleted) {
     return root;
 }
 
+void scheduleNotification(ITNode *root, int eventId) {
+    ITNode *eventNode = findEventById(root, eventId);
+    if (eventNode == NULL) {
+        printf("Event not found.\n");
+        return;
+    }
+
+    printf("Enter Notification Time for Event ID %d: ", eventNode->i->id);
+    scanf("%d", &(eventNode->i->notifyTime));
+    printf("Enter Notification Method for Event ID %d: ", eventNode->i->id);
+    scanf(" %[^\n]%*c", eventNode->i->notificationMethod);
+    printf("Enter Recipient for Event ID %d: ", eventNode->i->id);
+    scanf(" %[^\n]%*c", eventNode->i->recipient);
+}
+
+void checkAndDeliverNotifications(ITNode *root, int time) {
+    if (root == NULL) return;
+    checkAndDeliverNotifications(root->left, time);
+    if (root->i->notifyTime == time) {
+        printf("Notification for Event ID %d: %s - Method: %s, Recipient: %s\n",
+               root->i->id, root->i->description, root->i->notificationMethod, root->i->recipient);
+    }
+    checkAndDeliverNotifications(root->right, time);
+}
+
+void explainEventsInTime(ITNode *root, int time) {
+    if (root == NULL) return;
+    if (time < root->i->low) {
+        explainEventsInTime(root->left, time);
+    } else if (time >= root->i->low && time <= root->i->high) {
+        printf("At time %d: Event ID %d - %s\n", time, root->i->id, root->i->description);
+        checkAndDeliverNotifications(root, time);
+        explainEventsInTime(root->left, time);
+        explainEventsInTime(root->right, time);
+    } else {
+        explainEventsInTime(root->right, time);
+    }
+}
+
+void freeIntervalTree(ITNode *root) {
+    if (root == NULL) return;
+
+    freeIntervalTree(root->left);
+    freeIntervalTree(root->right);
+    free(root->i);
+    free(root);
+}
+
+void inorder(ITNode *root) {
+    if (root == NULL) return;
+
+    inorder(root->left);
+    printf("Interval: [%d, %d] - Event ID %d: %s\n", root->i->low, root->i->high, root->i->id, root->i->description);
+    inorder(root->right);
+}
+
 int main() {
-    AVLTreeNode* root = NULL;
+    ITNode *root = NULL;
+    int choice;
+    Interval i;
 
     while (1) {
-        printf("\nCalendar Scheduling System\n");
-        printf("1. Add Event\n");
-        printf("2. List Events\n");
-        printf("3. Check for Conflicts\n");
-        printf("4. Delete Event\n");
-        printf("5. Exit\n");
+        printf("\nInterval Tree Operations\n");
+        printf("1. Insert Event\n");
+        printf("2. Explain Events at Time\n");
+        printf("3. Delete Event by ID\n");
+        printf("4. Display Intervals (In-order)\n");
+        printf("5. Schedule Notification for Event\n");
+        printf("6. Exit\n");
         printf("Enter your choice: ");
-
-        int choice;
         scanf("%d", &choice);
 
         switch (choice) {
-            case 1: {
-                Event newEvent;
-
-                printf("Enter event description: ");
-                getchar(); 
-                fgets(newEvent.description, sizeof(newEvent.description), stdin);
-                newEvent.description[strcspn(newEvent.description, "\n")] = '\0'; 
-
-                printf("Enter event start time: ");
-                scanf("%d", &newEvent.start);
-                printf("Enter event end time: ");
-                scanf("%d", &newEvent.end);
-
-                if (newEvent.start >= newEvent.end) {
-                    printf("Invalid event time. End time must be after start time.\n");
-                } else {
-                    newEvent.id = eventIdCounter++; // Assign a unique event ID
-                    if (hasConflictInAVLTree(root, newEvent)) {
-                        printf("Conflict detected. Event not added to the calendar.\n");
-                    } else {
-                        root = insertEvent(root, newEvent);
-                        printf("Event added to the calendar with ID %d.\n", newEvent.id);
-                    }
-                }
+            case 1:
+                printf("Enter Event ID: ");
+                i.id = eventIdCounter++;
+                printf("Enter Event Description: ");
+                scanf(" %[^\n]%*c", i.description);
+                printf("Enter Event Interval [low, high]: ");
+                scanf("%d %d", &i.low, &i.high);
+                root = insertWithConflictCheck(root, i);
                 break;
-            }
-
             case 2:
-                printf("Events in the calendar:\n");
-                displayEvents(root);
+                printf("Enter Time to Explain Events: ");
+                int time;
+                scanf("%d", &time);
+                explainEventsInTime(root, time);
                 break;
-
-            case 3: {
-                if (root == NULL) {
-                    printf("No events in the calendar.\n");
-                } else {
-                    Event timeSlot;
-                    printf("Enter time slot to check for conflicts:\n");
-                    printf("Start time: ");
-                    scanf("%d", &timeSlot.start);
-                    printf("End time: ");
-                    scanf("%d", &timeSlot.end);
-
-                    if (hasConflictInAVLTree(root, timeSlot)) {
-                        printf("Conflict detected in the specified time slot.\n");
-                    } else {
-                        printf("No conflicts in the specified time slot.\n");
-                    }
-                }
-                break;
-            }
-
-            case 4: {
+            case 3:
+                printf("Enter Event ID to Delete: ");
                 int eventIdToDelete;
-                printf("Enter the event ID to delete: ");
                 scanf("%d", &eventIdToDelete);
-
-                int deleted = 0;
-                root = deleteEventById(root, eventIdToDelete, &deleted);
-                if (deleted) {
-                    printf("Event deleted from the calendar.\n");
-                } else {
-                    printf("Specified event is not in the calendar.\n");
-                }
+                root = deleteEventById(root, eventIdToDelete);
                 break;
-            }
-
+            case 4:
+                printf("Intervals (In-order Traversal):\n");
+                inorder(root);
+                break;
             case 5:
-                free(root);
+                printf("Enter Event ID to Schedule Notification: ");
+                int eventIdToNotify;
+                scanf("%d", &eventIdToNotify);
+                scheduleNotification(root, eventIdToNotify);
+                break;
+            case 6:
+                freeIntervalTree(root);
                 exit(0);
-
             default:
                 printf("Invalid choice. Please enter a valid option.\n");
         }
